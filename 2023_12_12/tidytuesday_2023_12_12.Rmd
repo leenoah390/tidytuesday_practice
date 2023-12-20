@@ -1,0 +1,118 @@
+---
+title: "tidytuesday_2023_12_12"
+author: "Noah Lee"
+date: "2023-12-18"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(sqldf)
+library(ggplot2)
+```
+
+# Tidy Tuesday 2023 Decemeber 12
+
+Read in the data
+```{r cars}
+holiday_movies <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-12-12/holiday_movies.csv')
+holiday_movie_genres <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-12-12/holiday_movie_genres.csv')
+```
+
+## Holdiay film releases per year
+Which years had the most holiday movies? Which years had the least?
+
+```{r}
+hol_movs_year <- sqldf("SELECT year, COUNT(year) as Num FROM holiday_movies
+      GROUP BY year
+      ORDER BY Num desc")
+head(hol_movs_year,5)
+tail(hol_movs_year,5)
+```
+
+```{r}
+ggplot(data=hol_movs_year, aes(x=year, y=Num)) + geom_point(colour='red') + 
+  geom_line() + labs(y='Number of films released', x='Year', title='Number of holiday films released')
+```
+
+## Holiday film releases per decade
+Which decade had the most/least number of holiday movies?
+
+```{r}
+# "decade_count" takes in an integer that represents a given decade. It returns the number of films released within the given decade
+decade_count <- function(decade) {
+  counting <- 0
+  for (i in holiday_movies$year){ # where variable i is the value in the $year column
+    if ((i >= decade) & (i< decade + 10)){ # checks if $year i is set in the decade
+      counting <- counting + 1
+    }
+  }
+  return (counting)
+}
+```
+
+```{r}
+decades <- c(1930, 1940, 1950, 1960, 1970,
+             1980, 1990, 2000, 2010, 2020)
+decades_rel <- c()
+
+for (dec in decades){
+  print(paste("The decade starting with", dec, "saw", decade_count(dec), "holiday films released"))
+  decades_rel <- append(decades_rel, decade_count(dec))
+}
+```
+
+```{r}
+decades_df <- data.frame(decades, decades_rel) #Create a table to do plotting over time
+
+ggplot(data=decades_df, aes(x=decades, y=decades_rel)) + geom_bar(stat='identity', fill="red") +
+  geom_text(aes(label=decades_rel), color="black", vjust=-0.5) + 
+  scale_x_continuous(breaks=seq(1930,2020, by=10)) + 
+  ylab('Count of holiday films') + xlab('Decade') + ggtitle('Holiday film releases per decade (1930s-2020s)')
+```
+
+## Which holiday movies are most popular?
+Answered by number of ratings given
+
+```{r}
+ranked_votes <- holiday_movies[order(-holiday_movies$num_votes), ] #sorted dataframe by number of votes
+
+ggplot(data=head(ranked_votes, 10), aes(x=reorder(primary_title,num_votes), y=num_votes)) + 
+  geom_bar(stat='identity', fill='green' ) + coord_flip() +
+  geom_text(aes(label=num_votes), color="black", hjust=1) + 
+  xlab(' ') + ylab('Number of votes (log)') + ggtitle('Popularity by number of votes (top 10)')
+```
+
+## Is there a certain genre that gets better ratings?
+Use sql joins, then find the average rating per genre.
+
+```{r}
+holmov_genres <- sqldf("SELECT holiday_movie_genres.genres, holiday_movie_genres.tconst, average_rating 
+                       FROM holiday_movies 
+                       RIGHT JOIN holiday_movie_genres ON holiday_movie_genres.tconst = holiday_movies.tconst")
+head(holmov_genres, 20)
+```
+```{r}
+genre_by_rating <- sqldf("SELECT AVG(average_rating) as average_rating, genres FROM holmov_genres
+      GROUP BY genres
+      ORDER BY average_rating DESC")
+genre_by_rating
+```
+This looks a bit surprising; why is Reality-TV so high? Why are all these top-10 genres so high? I would expect more comedy-drama-romance based on the many holiday classics there are. I'm thinking of going back and adding how many counts per genre - maybe the reasoning of the high genre scores is because of over-saturation of releases? 
+
+```{r}
+genre_by_rating2 <- sqldf("SELECT AVG(average_rating) as average_rating, COUNT(genres) as genre_count, genres 
+      FROM holmov_genres
+      GROUP BY genres
+      ORDER BY genre_count DESC")
+genre_by_rating2
+```
+This makes more sense, in that more popular genres tend to have lower ratings, compared to less popular genres with higher ratings. Likely to do with over-saturated markets.
+A visualization.
+```{r}
+ggplot(data=genre_by_rating2, aes(x=reorder(genres,genre_count), y=genre_count)) + 
+  geom_bar(stat='identity', fill='blue') +
+  coord_flip() +
+  geom_text(aes(label=genre_count), color="black", hjust=-0.1) + 
+  xlab(' ') + ylab('Number of films released') + ggtitle('Genres, ordered by number of films')
+```
