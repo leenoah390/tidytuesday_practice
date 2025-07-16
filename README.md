@@ -1,2 +1,2 @@
 # tidytuesday_practice  
-Practice for R
+Plotting practice for Python and R
