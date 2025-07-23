@@ -1,4 +1,4 @@
-# Tidy Tuesday for July 7, 2025
+# Tidy Tuesday for July 22, 2025
 ### MTA Art
 Sourced from: https://github.com/rfordatascience/tidytuesday/blob/main/data/2025/2025-07-22/readme.md
 
