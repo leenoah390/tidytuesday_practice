@@ -1,4 +1,4 @@
 # tidytuesday_practice  
-Plotting practice for Python and R
+Weekly practice with data using Python, Power BI, and R.
 
 Data sourced from: https://github.com/rfordatascience/tidytuesday
