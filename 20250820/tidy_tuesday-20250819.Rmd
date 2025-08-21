@@ -1,0 +1,201 @@
+---
+title: 'Tidy Tuesday: Scottish Munros'
+output:
+  pdf_document: default
+  html_notebook: default
+---
+**August 20, 2025**
+
+Today's goal is to answer the three questions on the Tidy Tuesday's [readme file](https://github.com/rfordatascience/tidytuesday/tree/main/data/2025/2025-08-19).
+
+>* How many peaks currently listed as Munros have always been included on the list?\
+>* Which year saw the largest number of changes to the classification?\
+>* Which Munro is the most remote?
+
+## **Prepare** ##
+### *Knowing the data* ###
+
+From the readme:
+
+>A Munro is a Scottish mountain with an elevation of over 3,000 feet, whereas a Munro Top is a subsidiary summit of a Munro that also exceeds 3,000 feet in height but is not considered a distinct mountain in its own right. The most famous Munro is Ben Nevis.
+
+The data and analysis will be about Scottish mountains and their classification statuses over time.
+
+### *Data Preparation* ###
+```{r}
+# Import libraries
+library(tidyverse)
+library(sqldf)
+library(ggplot2)
+```
+
+```{r}
+# Import the data
+munros <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-08-19/scottish_munros.csv')
+munros
+```
+
+First off, the columns `DoBIH_number` and `Comments` can be removed, as neither are relevant to the goals presented. Additionally, the final row of the dataset can be dropped, as it appears that that row does not contain any data and is instead a text block that describes the source of the data.
+
+```{r}
+# Drop the 2 columns
+drops <- c('DoBIH_number', 'Comments')
+munros <- munros[ , !(names(munros) %in% drops)]
+
+# Remove the last row
+munros <- munros[-nrow(munros),]
+```
+
+I will also rename the columns describing the years to the format "y1891". This is because R does not work well with column names being entirely made up of integers.
+```{r}
+# Rename every column to fit formatting
+munros <- munros %>% 
+  rename(
+    y1891 = "1891",
+    y1921 = "1921",
+    y1933 = "1933",
+    y1953 = "1953",
+    y1969 = "1969",
+    y1974 = "1974",
+    y1981 = "1981",
+    y1984 = "1984",
+    y1990 = "1990",
+    y1997 = "1997",
+    y2021 = "2021"
+    )
+```
+
+Also replace NA values with a string value of "NA".
+```{r}
+munros[is.na(munros)] <- "NA"
+```
+
+Now make sure data looks all ok.
+```{r}
+# View cleaned data
+munros
+```
+
+Lastly, check the data types.
+```{r}
+sapply(munros, class)
+```
+Now, onto answering the questions.
+
+
+## **Analysis**
+
+### 1) How many peaks currently listed as Munros have always been included on the list?
+
+First, let's see how many mountains were listed as a Munro in the initial survey:
+```{r}
+# Find the count of Munros in 1891
+sqldf("SELECT COUNT(Name) AS 'Number of Munros in 1891' FROM munros
+      WHERE y1891 = 'Munro'")
+```
+So 283 formations were classed as a Munro in the initial 1891 survey. Now let us see how many kept their Munro statues throughout the years:
+
+```{r}
+# Find the count of Munros that kept a classification of "Munro" in every survey
+sqldf("SELECT COUNT(Name) AS 'Forever Munros' FROM munros
+      WHERE 
+        y1891 = 'Munro' AND  
+        y1921 = 'Munro' AND 
+        y1933 = 'Munro' AND
+        y1953 = 'Munro' AND
+        y1969 = 'Munro' AND
+        y1974 = 'Munro' AND
+        y1981 = 'Munro' AND
+        y1984 = 'Munro' AND
+        y1990 = 'Munro' AND
+        y1997 = 'Munro' AND
+        y2021 = 'Munro'")
+```
+
+So out of the 283 Munros that were classed as such, **243** have kept their classification as a Munro in every survey between the first of 1891 to the most recent one of 2021.
+
+
+For Munro Tops...
+```{r}
+# Find the count of Munro Tops in 1891
+sqldf("SELECT COUNT(Name) AS 'Number of Munro Tops in 1891' FROM munros
+      WHERE y1891 = 'Munro Top'")
+
+# Find the count of Munros that kept a classification of "Munro" in every survey
+sqldf("SELECT COUNT(Name) AS 'Forever Munro Tops' FROM munros
+      WHERE 
+        y1891 = 'Munro Top' AND  
+        y1921 = 'Munro Top' AND 
+        y1933 = 'Munro Top' AND
+        y1953 = 'Munro Top' AND
+        y1969 = 'Munro Top' AND
+        y1974 = 'Munro Top' AND
+        y1981 = 'Munro Top' AND
+        y1984 = 'Munro Top' AND
+        y1990 = 'Munro Top' AND
+        y1997 = 'Munro Top' AND
+        y2021 = 'Munro Top'")
+```
+
+Additionally, 156 Munro Tops have consistently been classified as a such during the same surveys. Compared to the count of 255 in the intitial 1891 survey.
+
+
+### 2) Which year saw the largest number of changes to the classification?
+
+There are 10 surveys following the first one in 1891. Thus, there is a possible 10 instances of Munro classification being updated between the years of Munro, Munro Top, and NA (not a Munro).
+```{r}
+cat('1921 updates:', sum(!(munros$y1891 == munros$y1921)) )
+cat('\n')
+cat('1933 updates:', sum(!(munros$y1921 == munros$y1933)) )
+cat('\n')
+cat('1953 updates:', sum(!(munros$y1933 == munros$y1953)) )
+cat('\n')
+cat('1969 updates:', sum(!(munros$y1953 == munros$y1969)) )
+cat('\n')
+cat('1974 updates:', sum(!(munros$y1969 == munros$y1974)) )
+cat('\n')
+cat('1981 updates:', sum(!(munros$y1974 == munros$y1981)) )
+cat('\n')
+cat('1984 updates:', sum(!(munros$y1981 == munros$y1984)) )
+cat('\n')
+cat('1990 updates:', sum(!(munros$y1984 == munros$y1990)) )
+cat('\n')
+cat('1997 updates:', sum(!(munros$y1990 == munros$y1997)) )
+cat('\n')
+cat('2021 updates:', sum(!(munros$y1997 == munros$y2021)) )
+```
+
+The **1981 survey had the largest change in classification of Munro statues**, with 102 changes since the previous survey held in 1974. Twice, a survey yielded no updates in Munro class changes (1969 and 1990 compared to the previous of 1953 and 1984, respectively).
+
+
+### 3) Which Munro is the most remote?
+
+I will use the results of the 2021 survey to show recent statuses
+```{r fig.align="center", echo = FALSE,fig.width = 14}
+ggplot(munros, aes(xcoord, ycoord, group=y2021)) + 
+  geom_point(aes(shape=y2021, color=y2021, size = 3)) +
+  scale_shape_manual(values=c(17, 2, 1)) +
+  labs(title='Location of Munros in 2021 (British National Grid (OSGB36) projection)',
+       x='X-coordinate (metres)', y='Y-coordinate (metres)',
+       shape='2021 Status', color='2021 status')
+```
+
+Clearly, there is a munro located in the South East that is far from the rest. I can filter the data by comparing the coordinate values.
+
+```{r}
+mask1 <- munros[munros$y2021 == 'Munro',] # Filter the Munros in 2021
+mask2 <- mask1[mask1$xcoord < 160000, ] # Filter the xycoordinates
+mask2[mask2$ycoord < 750000,]
+```
+
+**Ben More** is the name of the distant Munro in the South East.\
+While I am sure there is a mathematical way to solve this, I feel that my answer is correct and can cover the solution.
+
+
+
+## **Finished**
+Looking back:
+
+* It has been a while since I last used R. Almost 2 years! Thus, this took a while. I do believe I prefer Python and Matplotlib over R and ggplot. Or maybe it's because I just got so used to Python. Either way, was a good refresher.
+* Found out that R dataframes can not have column names made up of only integers. Which makes sense in hindsight, but I really got tripped up for a while during the analysis portion, before going back and reformatting the names.
+* A little annoyed on the 2 legends in my scatter plot of the Munro locations. If I plotted in Matplotlib, I feel like I could combine the two legends. But oh well. I am less experienced with R.
